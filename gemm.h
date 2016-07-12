@@ -91,7 +91,7 @@ void gemm(uint32_t M,
           Tacc beta,
           Tout *__restrict__ out) {
 
-    const uint32_t blk_dim = 16;
+    const uint32_t blk_dim = 32;
     const uint32_t blk_dim_M = blk_dim;
     const uint32_t blk_dim_N = blk_dim;
     const uint32_t blk_dim_K = blk_dim;

@@ -60,20 +60,20 @@ int main() {
     test<Tin1, Tin2, Tout, Tacc>(true , false,  12, 3 ,  8 );
     test<Tin1, Tin2, Tout, Tacc>(true , true ,  11, 32,  9 );
 
-    // assert(test(false, false, 256,  2, 256) == 2063.f);
-    // assert(test(true , false, 256,  2, 256) == 2063.f);
-    // assert(test(false, true , 256,  2, 256) == 2063.f);
-    // assert(test(true , true , 256,  2, 256) == 2063.f);
+    //test<float, float, float, float>(false, false, 256,  2, 256) == 2063.f;
+    //test<float, float, float, float>(true , false, 256,  2, 256) == 2063.f;
+    //test<float, float, float, float>(false, true , 256,  2, 256) == 2063.f;
+    //test<float, float, float, float>(true , true , 256,  2, 256) == 2063.f;
 
     uint32_t N = 2560;
     uint64_t t0 = timestamp_us();
     test<int8_t, uint8_t, int16_t, int16_t>(false, false, N,  N, N);
     uint64_t t1 = timestamp_us();
-    //test(false, true , N,  N, N);
+    test<int8_t, uint8_t, int16_t, int16_t>(false, true , N,  N, N);
     uint64_t t2 = timestamp_us();
-    //test(true , false, N,  N, N);
+    test<int8_t, uint8_t, int16_t, int16_t>(true , false, N,  N, N);
     uint64_t t3 = timestamp_us();
-    //test(true , true , N,  N, N);
+    test<int8_t, uint8_t, int16_t, int16_t>(true , true , N,  N, N);
     uint64_t t4 = timestamp_us();
 
     std::cout << "NN(" << N << "): " << std::fixed << std::setprecision(4)
