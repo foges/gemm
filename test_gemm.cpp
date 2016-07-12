@@ -40,7 +40,7 @@ int test(bool in1_t,
 
     for (uint32_t i = 0; i < M * N; ++i) {
         if (out[i] != out[0]) {
-            std::cout << "ERROR: " << out[i] << " " << out[0] <<std::endl;
+            std::cout << "ERROR: " << (double)out[i] << " " << (double)out[0] <<std::endl;
             break;
         }
     }
@@ -49,17 +49,22 @@ int test(bool in1_t,
 }
 
 int main() {
-    // assert(test(false, false,  16, 18,  17) ==  151.f);
-    // assert(test(false, true ,  9 , 19,  13) ==  119.f);
-    // assert(test(true , false,  12, 3 ,  8 ) ==   79.f);
-    // assert(test(true , true ,  11, 32,  9 ) ==   87.f);
+    using Tin1 = int8_t;
+    using Tin2 = uint8_t;
+    using Tout = int8_t;
+    using Tacc = int16_t;
+    std::cout << test<Tin1, Tin2, Tout, Tacc>(false, false,  16, 18,  17) << std::endl;
+//    assert((test<Tin1, Tin2, Tout, Tacc>(false, false,  16, 18,  17) ==  151.f));
+//    assert((test<Tin1, Tin2, Tout, Tacc>(false, true ,  9 , 19,  13) ==  119.f));
+//    assert((test<Tin1, Tin2, Tout, Tacc>(true , false,  12, 3 ,  8 ) ==   79.f));
+//    assert((test<Tin1, Tin2, Tout, Tacc>(true , true ,  11, 32,  9 ) ==   87.f));
 
     // assert(test(false, false, 256,  2, 256) == 2063.f);
     // assert(test(true , false, 256,  2, 256) == 2063.f);
     // assert(test(false, true , 256,  2, 256) == 2063.f);
     // assert(test(true , true , 256,  2, 256) == 2063.f);
 
-    uint32_t N = 1024;
+    uint32_t N = 2560;
     uint64_t t0 = timestamp_us();
     test<int8_t, uint8_t, int16_t, int16_t>(false, false, N,  N, N);
     uint64_t t1 = timestamp_us();
