@@ -10,18 +10,18 @@ template <typename Tin1,
           typename Tin2,
           typename Tout,
           typename Tacc>
-int test(bool in1_t,
-         bool in2_t,
-         uint32_t M,
-         uint32_t N,
-         uint32_t K) {
+void test(bool in1_t,
+          bool in2_t,
+          uint32_t M,
+          uint32_t N,
+          uint32_t K) {
 
     Tin1 *in1 = new Tin1[M * K];
     Tin2 *in2 = new Tin2[K * N];
     Tout *out = new Tout[M * N];
 
-    Tacc alpha = 4;
-    Tacc beta  = 5;
+    Tacc alpha = 2;
+    Tacc beta  = 1;
 
     for (uint32_t i = 0; i < M * K; ++i) {
         in1[i] = 1;
@@ -32,20 +32,21 @@ int test(bool in1_t,
     }
 
     for (uint32_t i = 0; i < M * N; ++i) {
-        out[i] = 3;
+        out[i] = 1;
     }
+
+    Tout expected = alpha * K * in1[0] * in2[0] + beta * out[0];
 
     gemm<Tin1, Tin2, Tout, Tacc, Tacc>(
         in1_t, in2_t, M, N, K, alpha, in1, in2, beta, out);
 
     for (uint32_t i = 0; i < M * N; ++i) {
-        if (out[i] != out[0]) {
-            std::cout << "ERROR: " << (double)out[i] << " " << (double)out[0] <<std::endl;
+        if (out[i] != expected) {
+            std::cout << "ERROR(" << i << "): " << (double)out[i] << " "
+                      << (double)expected << std::endl;
             break;
         }
     }
-
-    return out[0];
 }
 
 int main() {
@@ -53,11 +54,11 @@ int main() {
     using Tin2 = uint8_t;
     using Tout = int8_t;
     using Tacc = int16_t;
-    std::cout << test<Tin1, Tin2, Tout, Tacc>(false, false,  16, 18,  17) << std::endl;
-//    assert((test<Tin1, Tin2, Tout, Tacc>(false, false,  16, 18,  17) ==  151.f));
-//    assert((test<Tin1, Tin2, Tout, Tacc>(false, true ,  9 , 19,  13) ==  119.f));
-//    assert((test<Tin1, Tin2, Tout, Tacc>(true , false,  12, 3 ,  8 ) ==   79.f));
-//    assert((test<Tin1, Tin2, Tout, Tacc>(true , true ,  11, 32,  9 ) ==   87.f));
+
+    test<Tin1, Tin2, Tout, Tacc>(false, false,  3, 4, 5);
+    test<Tin1, Tin2, Tout, Tacc>(false, true ,  9 , 19,  13);
+    test<Tin1, Tin2, Tout, Tacc>(true , false,  12, 3 ,  8 );
+    test<Tin1, Tin2, Tout, Tacc>(true , true ,  11, 32,  9 );
 
     // assert(test(false, false, 256,  2, 256) == 2063.f);
     // assert(test(true , false, 256,  2, 256) == 2063.f);

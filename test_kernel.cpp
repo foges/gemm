@@ -61,14 +61,14 @@ int main() {
     //print(tmp_hi, tmp_8u, sz);
     //std::cout << std::endl;
 
-    __m256i hi_b = _mm256_unpackhi_epi8(tmp_lo, tmp_hi);
-    __m256i lo_b = _mm256_unpacklo_epi8(tmp_lo, tmp_hi);
+    __m256i b = _mm256_unpackhi_epi8(tmp_lo, tmp_hi);
+    //__m256i lo_b = _mm256_unpacklo_epi8(tmp_lo, tmp_hi);
     //print(hi_b, tmp_8u, sz);
     //print(lo_b, tmp_8u, sz);
     //std::cout << std::endl;
 
-    __m256i res_hi = _mm256_maddubs_epi16(hi_b, hi);
-    __m256i res_lo = _mm256_maddubs_epi16(lo_b, lo);
+    __m256i res_hi = _mm256_maddubs_epi16(b, hi);
+    __m256i res_lo = _mm256_maddubs_epi16(b, lo);
 
     //print(res_hi, tmp_16i, sz / 2);
     //print(res_lo, tmp_16i, sz / 2);

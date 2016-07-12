@@ -10,9 +10,16 @@
 #include <limits>
 #include <sstream>
 
-#define _mm256_set_m128i(v0, v1)  _mm256_insertf128_si256(_mm256_castsi128_si256(v1), (v0), 1)
-
-#define _mm256_setr_m128i(v0, v1) _mm256_set_m128i((v1), (v0))
+template <typename T>
+void inspect(__m256i val) {
+    const int sz = 32 / sizeof(T);
+    T tmp[sz];
+    _mm256_store_si256((__m256i*)(tmp), val);
+    for (size_t i = 0; i < sz; ++i) {
+        std::cout << (int)tmp[i] << " ";
+    }
+    std::cout << std::endl;
+}
 
 template <uint32_t blk_dim_M,
           uint32_t blk_dim_N,
@@ -21,30 +28,26 @@ void gemm_kernel(const int8_t  *__restrict__ in1,
                  const uint8_t *__restrict__ in2,
                  int16_t       *__restrict__ acc) {
 
+    static const uint32_t sz = 16;
+
     for (uint32_t j = 0; j < blk_dim_N; ++j) {
-        for (uint32_t i = 0; i < blk_dim_M / 16; ++i) {
+        for (uint32_t i = 0; i < blk_dim_M / sz; ++i) {
             __m256i c = _mm256_setzero_si256();
 
             for (uint32_t k = 0; k < blk_dim_K / 2; ++k) {
-                __m256i a, b;
-                __m128i tmp_lo, tmp_hi;
+                __m256i a = _mm256_loadu_si256((__m256i*)(in1 + k * 2 * blk_dim_M + i * 2 * sz));
 
-                tmp_lo = _mm_load_si128((__m128i*)(in1 + (2 * k + 0) * blk_dim_M + i * 16));
-                tmp_hi = _mm_load_si128((__m128i*)(in1 + (2 * k + 1) * blk_dim_M + i * 16));
+                __m256i b_l = _mm256_set1_epi8(in2[j * blk_dim_K + 2 * k + 0]);
+                __m256i b_r = _mm256_set1_epi8(in2[j * blk_dim_K + 2 * k + 1]);
 
-                a = _mm256_setr_m128i(tmp_lo, tmp_hi);
-
-                tmp_lo = _mm_set1_epi8(in2[j * blk_dim_K + 2 * k + 0]);
-                tmp_hi = _mm_set1_epi8(in2[j * blk_dim_K + 2 * k + 1]);
-
-                b = _mm256_setr_m128i(tmp_lo, tmp_hi);
+                __m256i b = _mm256_unpackhi_epi8(b_l, b_r);
 
                 __m256i res = _mm256_maddubs_epi16(b, a);
 
                 c = _mm256_adds_epi16(c, res);
             }
 
-            _mm256_store_si256((__m256i*)(acc + j * blk_dim_M + i * 16), c);
+            _mm256_store_si256((__m256i*)(acc + j * blk_dim_M + i * sz), c);
         }
     }
 }
@@ -65,7 +68,7 @@ void gemm_kernel(const Tin1 *__restrict__ in1,
             for (uint32_t k = 0; k < blk_dim_K; ++k) {
 
                 acc[i + j * blk_dim_M] += static_cast<Tacc>(
-                    static_cast<Tmul>(in1[i * blk_dim_K + k]) *
+                    static_cast<Tmul>(in1[i + blk_dim_M * k]) *
                     static_cast<Tmul>(in2[j * blk_dim_K + k]));
             }
         }
@@ -96,10 +99,6 @@ void gemm(uint32_t M,
     const uint32_t blk_M = (M + blk_dim_M - 1) / blk_dim_M;
     const uint32_t blk_N = (N + blk_dim_N - 1) / blk_dim_N;
     const uint32_t blk_K = (K + blk_dim_K - 1) / blk_dim_K;
-
-//    Tacc acc[blk_dim_M * blk_dim_N];
-//    Tin1 in1_tmp[blk_dim_M * blk_dim_K];
-//    Tin2 in2_tmp[blk_dim_N * blk_dim_K];
 
     size_t acc_sz     = blk_dim_M * blk_dim_N;
     size_t in1_tmp_sz = blk_dim_M * blk_dim_K;
@@ -133,12 +132,17 @@ void gemm(uint32_t M,
 
                 // Copy to temp
                 std::memset(in1_tmp, 0, in1_tmp_sz * sizeof(Tin1));
-                for (uint32_t i = 0; i < blk_dim_M_local; ++i) {
-                    uint32_t x = blk_i * blk_dim_M + i;
-                    for (uint32_t k = 0; k < blk_dim_K_local; ++k) {
-                        uint32_t z = blk_k * blk_dim_K + k;
+                for (uint32_t k = 0; k < (blk_dim_K_local + 1) / 2; ++k) {
+                    uint32_t z1 = blk_k * blk_dim_K + 2 * k + 0;
+                    uint32_t z2 = blk_k * blk_dim_K + 2 * k + 1;
+                    for (uint32_t i = 0; i < blk_dim_M_local; ++i) {
+                        uint32_t x = blk_i * blk_dim_M + i;
 
-                        in1_tmp[i * blk_dim_K + k] = in1[in1_t ? x * K + z : x + z * M];
+                        in1_tmp[2 * i + 0 + blk_dim_M * 2 * k] = in1[in1_t ? x * K + z1: x + z1 * M];
+
+                        //if (2 * k + 1 < blk_dim_K_local) {
+                            in1_tmp[2 * i + 1 + blk_dim_M * 2 * k] = in1[in1_t ? x * K + z2: x + z2 * M];
+                        //}
                     }
                 }
 
@@ -152,10 +156,10 @@ void gemm(uint32_t M,
                     }
                 }
 
-                gemm_kernel<Tin1, Tin2, Tmul, Tacc, blk_dim_M, blk_dim_N, blk_dim_K>(
-                    in1_tmp, in2_tmp, acc);
+                //gemm_kernel<Tin1, Tin2, Tmul, Tacc, blk_dim_M, blk_dim_N, blk_dim_K>(
+                //    in1_tmp, in2_tmp, acc);
 
-                //gemm_kernel<blk_dim_M, blk_dim_N, blk_dim_K>(in1_tmp, in2_tmp, acc);
+                gemm_kernel<blk_dim_M, blk_dim_N, blk_dim_K>(in1_tmp, in2_tmp, acc);
             }
 
             // Write accumulator to output
